@@ -11,6 +11,175 @@ GO
 --TEAM 1 PRIMARY KEY TABLES
 
 --TEAM 2 PRIMARY KEY TABLES
+-- PURCHASE ORDER & STOCK --
+CREATE TABLE IF NOT EXISTS PurchaseOrder (
+    poID INT PRIMARY KEY,
+    supplierID INT,
+    poDate DATE,
+    status ENUM('COMPLETED','CONFIRMED','SUBMITTED','APPROVED','REJECTED','CANCELLED'),
+    expectedDeliveryDate DATE,
+    totalAmount DECIMAL(10,2)
+);
+
+CREATE TABLE IF NOT EXISTS POLineItem (
+    poLineID INT AUTO_INCREMENT PRIMARY KEY,
+    poID INT,
+    productID INT,
+    qty INT,
+    unitPrice DECIMAL(10,2),
+    lineTotal DECIMAL(10,2)
+);
+
+CREATE TABLE IF NOT EXISTS StockItem (
+    productID INT PRIMARY KEY,
+    sku VARCHAR(100),
+    name VARCHAR(255),
+    uom VARCHAR(50)
+);
+
+-- SUPPLIER & VETTING --
+CREATE TABLE IF NOT EXISTS Supplier (
+    SupplierID INT PRIMARY KEY,
+    Name VARCHAR(255),
+    Details VARCHAR(500),
+    CreditPeriod INT,
+    AvgTurnaroundTime FLOAT,
+    SupplierCategory ENUM('A','B','C','D'), -- need update
+    IsVerified BOOLEAN,
+    VettingResult ENUM('APPROVED','REJECTED','PENDING') -- need update
+);
+
+CREATE TABLE IF NOT EXISTS SupplierCategoryChangeLog (
+    LogID INT AUTO_INCREMENT PRIMARY KEY,
+    SupplierID INT,
+    PreviousCategory ENUM('A','B','C','D'), -- need update
+    NewCategory ENUM('A','B','C','D'), -- need update
+    ChangeReason VARCHAR(255),
+    ChangedAt DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS VettingRecord (
+    VettingID INT AUTO_INCREMENT PRIMARY KEY,
+    RatingID INT,
+    SupplierID VARCHAR(255),
+    VettedByUserID VARCHAR(255),
+    VettedAt DATETIME,
+    Decision ENUM('APPROVED','REJECTED'),
+    Notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ReliabilityRating (
+    RatingID INT AUTO_INCREMENT PRIMARY KEY,
+    SupplierID VARCHAR(255),
+    Score DECIMAL(5,2),
+    Rationale TEXT,
+    RatingBand ENUM('HIGH','MEDIUM','LOW','UNRATED'),
+    CalculatedByUserID VARCHAR(255),
+    CalculatedAt DATETIME
+);
+
+-- REPLENISHMENT --
+CREATE TABLE IF NOT EXISTS ReplenishmentRequest (
+    RequestId INT AUTO_INCREMENT PRIMARY KEY,
+    RequestedBy VARCHAR(100),
+    Status ENUM('DRAFT','SUBMITTED','CANCELLED','COMPLETED'),
+    CreatedAt DATETIME,
+    Remarks TEXT,
+    CompletedAt DATETIME,
+    CompletedBy DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS LineItem (
+    LineItemId INT AUTO_INCREMENT PRIMARY KEY,
+    RequestId INT,
+    ProductId INT,
+    QuantityRequest INT,
+    ReasonCode ENUM('LOWSTOCK','DEMANDSPIKE','REPLACEMENT','NEWITEM','OTHERS'),
+    Remarks TEXT
+);
+
+-- TRANSACTIONS --
+CREATE TABLE IF NOT EXISTS RentalOrderLog (
+    RentalOrderId INT AUTO_INCREMENT PRIMARY KEY,
+    OrderId VARCHAR(50),
+    CustomerId VARCHAR(50),
+    OrderDate DATETIME,
+    TotalAmount DECIMAL(10,2),
+    Status ENUM('PENDING','CONFIRMED','CANCELLED','COMPLETED'),
+    DetailsJSON TEXT
+);
+
+CREATE TABLE IF NOT EXISTS LoanLog (
+    LoanListId INT AUTO_INCREMENT PRIMARY KEY,
+    OrderId VARCHAR(50),
+    Status ENUM('ONGOING','RETURNED','OVERDUE','CANCELLED'),
+    LoanDate DATETIME,
+    ReturnDate DATETIME,
+    DueDate DATETIME,
+    DetailsJSON TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ReturnLog (
+    ReturnId INT AUTO_INCREMENT PRIMARY KEY,
+    CustomerId VARCHAR(50),
+    ReturnRequestId INT,
+    ReturnItemId INT,
+    RefundAmount DECIMAL(10,2),
+    RequestDate DATETIME,
+    CompletionDate DATETIME,
+    Status ENUM('PENDING','APPROVED','REJECTED','COMPLETED'),
+    ImageURL VARCHAR(500),
+    DetailsJSON TEXT
+);
+
+CREATE TABLE IF NOT EXISTS PurchaseOrderLog (
+    PurchaseOrderId INT AUTO_INCREMENT PRIMARY KEY,
+    SupplierId VARCHAR(50),
+    Status ENUM('PENDING','APPROVED','REJECTED','DELIVERED','CANCELLED'),
+    ExpectedDeliveryDate DATETIME,
+    TotalAmount DECIMAL(10,2),
+    DetailsJSON TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ClearenceLog (
+    ClearenceBatchId INT AUTO_INCREMENT PRIMARY KEY,
+    BatchName VARCHAR(255),
+    ClearenceItemId INT,
+    ClearenceDate DATETIME,
+    FinalPrice DECIMAL(10,2),
+    RecommendedPrice DECIMAL(10,2),
+    SaleDate DATETIME,
+    Status ENUM('ONGOING','COMPLETED','CANCELLED'),
+    DetailsJSON TEXT
+);
+
+-- ANALYTICS TABLES --
+CREATE TABLE IF NOT EXISTS ReportExport (
+    ReportID INT AUTO_INCREMENT PRIMARY KEY,
+    RefAnalyticsID INT,
+    Title VARCHAR(255),
+    VisualType ENUM('TABLE', 'BAR', 'COLUMN', 'LINE', 'PIE', 'AREA'),
+    FileFormat ENUM('CSV', 'XLSX', 'PDF', 'PNG'),
+    URL VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS Analytics (
+    AnalyticsID INT AUTO_INCREMENT PRIMARY KEY,
+    StartDate DATETIME,
+    EndDate DATETIME,
+    loanAmt INT,
+    returnAmt INT,
+    PrimarySupplierID INT,
+    PrimaryItemID INT,
+    SupplierReliability DECIMAL(10,2),
+    TurnoverRate DECIMAL(10,2)
+);
+
+CREATE TABLE IF NOT EXISTS AnalysisList (
+    AnalyticsID INT,
+    TransactionLogID INT
+);
+
 
 --TEAM 3 PRIMARY KEY TABLES
 
