@@ -10,6 +10,296 @@ GO
 
 --TEAM 1 PRIMARY KEY TABLES
 
+-- ============================================================
+-- ENUM Types
+-- ============================================================
+CREATE TYPE transport_mode AS ENUM (
+    'TRUCK', 'SHIP', 'PLANE', 'TRAIN'
+);
+
+CREATE TYPE transport_mode_combination AS ENUM (
+    'TRUCK_ONLY', 'SHIP_TRUCK', 'AIR_TRUCK', 'RAIL_TRUCK', 'MULTIMODAL'
+);
+
+CREATE TYPE preference_type AS ENUM (
+    'SPEED', 'COST', 'GREEN'
+);
+
+CREATE TYPE batch_status AS ENUM (
+    'PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'
+);
+
+CREATE TYPE carbon_stage_type AS ENUM (
+    'DAMAGE_INSPECTION', 'REPAIRING', 'SERVICING', 'CLEANING', 'RETURN'
+);
+
+CREATE TYPE hub_type AS ENUM (
+    'WAREHOUSE', 'SHIPPING_PORT', 'AIRPORT'
+);
+
+
+-- ============================================================
+-- TransportationHub (Parent — Table-Per-Subtype Inheritance)
+-- ============================================================
+CREATE TABLE transportation_hub (
+    hub_id             INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    hub_type           hub_type         NOT NULL,
+    longitude          DOUBLE PRECISION NOT NULL,
+    latitude           DOUBLE PRECISION NOT NULL,
+    country_code       VARCHAR(10)      NOT NULL,
+    address            VARCHAR(255)     NOT NULL,
+    operational_status VARCHAR(50),
+    operation_time     VARCHAR(50)
+);
+
+CREATE TABLE warehouse (
+    hub_id                        INT PRIMARY KEY,
+    warehouse_code                VARCHAR(100) NOT NULL,
+    total_warehouse_volume        FLOAT,
+    climate_control_emission_rate FLOAT,
+    lighting_emission_rate        FLOAT,
+    security_system_emission_rate FLOAT,
+    CONSTRAINT fk_warehouse_hub FOREIGN KEY (hub_id)
+        REFERENCES transportation_hub(hub_id) ON DELETE CASCADE
+);
+
+CREATE TABLE shipping_port (
+    hub_id      INT PRIMARY KEY,
+    port_code   VARCHAR(20)  NOT NULL,
+    port_name   VARCHAR(255) NOT NULL,
+    port_type   VARCHAR(50),
+    vessel_size VARCHAR(50),
+    CONSTRAINT fk_shipping_port_hub FOREIGN KEY (hub_id)
+        REFERENCES transportation_hub(hub_id) ON DELETE CASCADE
+);
+
+CREATE TABLE airport (
+    hub_id       INT PRIMARY KEY,
+    airport_code VARCHAR(10)  NOT NULL,
+    airport_name VARCHAR(255) NOT NULL,
+    terminal     INT,
+    CONSTRAINT fk_airport_hub FOREIGN KEY (hub_id)
+        REFERENCES transportation_hub(hub_id) ON DELETE CASCADE
+);
+
+
+-- ============================================================
+-- Transport (Parent — Table-Per-Subtype Inheritance)
+-- ============================================================
+CREATE TABLE transport (
+    transport_id    INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    transport_mode  transport_mode   NOT NULL,
+    max_load_kg     DOUBLE PRECISION,
+    vehicle_size_m2 FLOAT,
+    is_available    BOOLEAN          DEFAULT TRUE
+);
+
+CREATE TABLE truck (
+    transport_id  INT PRIMARY KEY,
+    truck_id      INT         NOT NULL,
+    truck_type    VARCHAR(50),
+    license_plate VARCHAR(50),
+    CONSTRAINT fk_truck_transport FOREIGN KEY (transport_id)
+        REFERENCES transport(transport_id) ON DELETE CASCADE
+);
+
+CREATE TABLE ship (
+    transport_id    INT PRIMARY KEY,
+    ship_id         INT         NOT NULL,
+    vessel_type     VARCHAR(50),
+    vessel_number   VARCHAR(50),
+    max_vessel_size VARCHAR(50),
+    CONSTRAINT fk_ship_transport FOREIGN KEY (transport_id)
+        REFERENCES transport(transport_id) ON DELETE CASCADE
+);
+
+CREATE TABLE plane (
+    transport_id   INT PRIMARY KEY,
+    plane_id       INT         NOT NULL,
+    plane_type     VARCHAR(50),
+    plane_callsign VARCHAR(50),
+    CONSTRAINT fk_plane_transport FOREIGN KEY (transport_id)
+        REFERENCES transport(transport_id) ON DELETE CASCADE
+);
+
+CREATE TABLE train (
+    transport_id  INT PRIMARY KEY,
+    train_id      INT         NOT NULL,
+    train_type    VARCHAR(50),
+    license_plate VARCHAR(50),
+    CONSTRAINT fk_train_transport FOREIGN KEY (transport_id)
+        REFERENCES transport(transport_id) ON DELETE CASCADE
+);
+
+
+-- ============================================================
+-- Route & Route Legs
+-- ============================================================
+CREATE TABLE route (
+    route_id            INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    origin_address      VARCHAR(255)               NOT NULL,
+    destination_address VARCHAR(255)               NOT NULL,
+    total_distance_km   DOUBLE PRECISION,
+    is_valid            BOOLEAN                    DEFAULT TRUE,
+    mode_combination    transport_mode_combination,
+    origin_hub_id       INT,
+    destination_hub_id  INT,
+    CONSTRAINT fk_route_origin_hub      FOREIGN KEY (origin_hub_id)
+        REFERENCES transportation_hub(hub_id),
+    CONSTRAINT fk_route_destination_hub FOREIGN KEY (destination_hub_id)
+        REFERENCES transportation_hub(hub_id)
+);
+
+CREATE TABLE route_leg (
+    leg_id         INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    route_id       INT            NOT NULL,
+    sequence       INT,
+    transport_mode transport_mode,
+    start_point    VARCHAR(255),
+    end_point      VARCHAR(255),
+    distance_km    DOUBLE PRECISION,
+    is_first_mile  BOOLEAN        DEFAULT FALSE,
+    is_last_mile   BOOLEAN        DEFAULT FALSE,
+    transport_id   INT,
+    CONSTRAINT fk_route_leg_route     FOREIGN KEY (route_id)
+        REFERENCES route(route_id),
+    CONSTRAINT fk_route_leg_transport FOREIGN KEY (transport_id)
+        REFERENCES transport(transport_id)
+);
+
+
+-- ============================================================
+-- Carbon Results & Leg Carbon
+-- ============================================================
+CREATE TABLE carbon_result (
+    carbon_result_id  INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    total_carbon_kg   DOUBLE PRECISION,
+    created_at        TIMESTAMP DEFAULT NOW(),
+    validation_passed BOOLEAN   DEFAULT FALSE
+);
+
+CREATE TABLE leg_carbon (
+    leg_id           INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    transport_mode   transport_mode,
+    distance_km      DOUBLE PRECISION,
+    weight_kg        DOUBLE PRECISION,
+    carbon_kg        DOUBLE PRECISION,
+    carbon_rate      DOUBLE PRECISION,
+    carbon_result_id INT,
+    route_leg_id     INT,
+    CONSTRAINT fk_leg_carbon_result FOREIGN KEY (carbon_result_id)
+        REFERENCES carbon_result(carbon_result_id),
+    CONSTRAINT fk_leg_carbon_leg    FOREIGN KEY (route_leg_id)
+        REFERENCES route_leg(leg_id)
+);
+
+
+-- ============================================================
+-- Shipping Options & Pricing Rules
+-- ============================================================
+CREATE TABLE shipping_option (
+    option_id        INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    display_name     VARCHAR(255),
+    cost             NUMERIC(10, 2),
+    carbon_footprint DOUBLE PRECISION,
+    delivery_days    INT,
+    is_green_option  BOOLEAN DEFAULT FALSE,
+    route_id         INT,
+    CONSTRAINT fk_shipping_option_route FOREIGN KEY (route_id)
+        REFERENCES route(route_id)
+);
+
+CREATE TABLE pricing_rule (
+    rule_id          INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    transport_mode   transport_mode,
+    base_rate_per_km NUMERIC(10, 4),
+    is_active        BOOLEAN        DEFAULT TRUE,
+    -- NOTE: ERD typed carbon_surcharge as DateTime — corrected to NUMERIC(10,4)
+    carbon_surcharge NUMERIC(10, 4)
+);
+
+
+-- ============================================================
+-- Customer Choice (Composite PK)
+-- NOTE: customer_id and order_id reference external Customer/Order
+--       tables not defined in this ERD — FK constraints omitted.
+-- ============================================================
+CREATE TABLE customer_choice (
+    customer_id     INT             NOT NULL,
+    order_id        INT             NOT NULL,
+    preference_type preference_type,
+    created_at      TIMESTAMP       DEFAULT NOW(),
+    PRIMARY KEY (customer_id, order_id)
+);
+
+
+-- ============================================================
+-- Delivery Batch & Batch Orders
+-- NOTE: batch_order.order_id references an external Order table
+--       not defined in this ERD — FK constraint omitted.
+-- ============================================================
+CREATE TABLE delivery_batch (
+    delivery_batch_id     INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source_hub            VARCHAR(255),
+    destination_address   VARCHAR(255),
+    delivery_batch_status batch_status DEFAULT 'PENDING',
+    total_orders          INT          DEFAULT 0,
+    carbon_savings        FLOAT,
+    source_hub_id         INT,
+    CONSTRAINT fk_delivery_batch_hub FOREIGN KEY (source_hub_id)
+        REFERENCES transportation_hub(hub_id)
+);
+
+
+-- ============================================================
+-- Product Return & Return Stages
+-- ============================================================
+CREATE TABLE product_return (
+    return_id     INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    return_status VARCHAR(50),
+    total_carbon  FLOAT,
+    date_in       DATE,
+    date_on       DATE
+);
+
+CREATE TABLE return_stage (
+    stage_id              INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    return_id             INT              NOT NULL,
+    stage_type            VARCHAR(50),
+    energy_kwh            DOUBLE PRECISION,
+    labour_hours          DOUBLE PRECISION,
+    materials_kg          DOUBLE PRECISION,
+    cleaning_supplies_qty DOUBLE PRECISION,
+    water_litres          DOUBLE PRECISION,
+    packaging_kg          DOUBLE PRECISION,
+    storage_hours         DOUBLE PRECISION,
+    CONSTRAINT fk_return_stage_return FOREIGN KEY (return_id)
+        REFERENCES product_return(return_id)
+);
+
+CREATE TABLE carbon_emission (
+    emission_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    stage_id    INT               NOT NULL,
+    carbon_kg   FLOAT,
+    stage_type  carbon_stage_type,
+    CONSTRAINT fk_carbon_emission_stage FOREIGN KEY (stage_id)
+        REFERENCES return_stage(stage_id)
+);
+
+
+-- TEAM 1 CROSS TEAM FK TABLES
+CREATE TABLE batch_order (
+    batch_id        INT       NOT NULL,
+    order_id        INT       NOT NULL, -- FK to external Order table (omitted)
+    added_timestamp TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (batch_id, order_id),
+    CONSTRAINT fk_batch_order_batch FOREIGN KEY (batch_id)
+        REFERENCES delivery_batch(delivery_batch_id)
+);
+
+
+-- TEAM 1 END
+
 --TEAM 2 PRIMARY KEY TABLES
 -- PURCHASE ORDER & STOCK --
 CREATE TABLE IF NOT EXISTS PurchaseOrder (
