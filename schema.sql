@@ -812,6 +812,108 @@ CREATE TABLE IF NOT EXISTS Deposit (
 --TEAM 2 CROSS TEAM FK TABLES
 
 --TEAM 3 CROSS TEAM FK TABLES
+CREATE TYPE loan_status AS ENUM ('OPEN', 'ON_LOAN', 'RETURNED');
+
+CREATE TYPE return_request_status AS ENUM ('PROCESSING', 'COMPLETED');
+
+CREATE TYPE return_item_status AS ENUM (
+    'DAMAGE_INSPECTION',
+    'REPAIRING',
+    'SERVICING',
+    'CLEANING',
+    'RETURN_TO_INVENTORY'
+);
+
+CREATE TABLE LoanList (
+    LoanListId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    OrderId INT NOT NULL,
+    CustomerId INT NOT NULL,
+    LoanDate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DueDate TIMESTAMP NOT NULL,
+    ReturnDate TIMESTAMP,
+    Status loan_status NOT NULL DEFAULT 'OPEN',
+    Remarks TEXT,
+
+    CONSTRAINT fk_loan_order
+        FOREIGN KEY (OrderId)
+        REFERENCES "Order"(OrderId)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_loan_customer
+        FOREIGN KEY (CustomerId)
+        REFERENCES Customer(CustomerId)
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE LoanItem (
+    LoanItemId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    LoanListId INT NOT NULL,
+    InventoryItemId INT NOT NULL,
+    Remarks TEXT,
+
+    CONSTRAINT fk_loanitem_loan
+        FOREIGN KEY (LoanListId)
+        REFERENCES LoanList(LoanListId)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_loanitem_inventory
+        FOREIGN KEY (InventoryItemId)
+        REFERENCES InventoryItem(InventoryId)
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE ReturnRequest (
+    ReturnRequestId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    OrderId INT NOT NULL,
+    CustomerId INT NOT NULL,
+    Status return_request_status NOT NULL DEFAULT 'PROCESSING',
+    RequestDate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CompletionDate TIMESTAMP,
+
+    CONSTRAINT fk_returnrequest_order
+        FOREIGN KEY (OrderId)
+        REFERENCES "Order"(OrderId)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_returnrequest_customer
+        FOREIGN KEY (CustomerId)
+        REFERENCES Customer(CustomerId)
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE ReturnItem (
+    ReturnItemId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ReturnRequestId INT NOT NULL,
+    InventoryItemId INT NOT NULL,
+    Status return_item_status NOT NULL DEFAULT 'DAMAGE_INSPECTION',
+    CompletionDate TIMESTAMP,
+    Image VARCHAR(255),
+
+    CONSTRAINT fk_returnitem_request
+        FOREIGN KEY (ReturnRequestId)
+        REFERENCES ReturnRequest(ReturnRequestId)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_returnitem_inventory
+        FOREIGN KEY (InventoryItemId)
+        REFERENCES InventoryItem(InventoryId)
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE DamageReport (
+    DamageReportId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ReturnItemId INT NOT NULL,
+    Description TEXT,
+    Severity VARCHAR(255),
+    RepairCost DECIMAL(10,2),
+    Images VARCHAR(255),
+    ReportDate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_damagereport_returnitem
+        FOREIGN KEY (ReturnItemId)
+        REFERENCES ReturnItem(ReturnItemId)
+        ON DELETE CASCADE
+);
 
 --TEAM 4 CROSS TEAM FK TABLES
 CREATE TABLE
