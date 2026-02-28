@@ -1,3 +1,22 @@
+-- Order Rental Processing System Schema
+-- Version 1.0
+-- Created: 28 Feb 2026
+
+CREATE DATABASE DatabaseDB;
+GO
+
+USE DatabaseDB;
+GO
+
+--TEAM 1 PRIMARY KEY TABLES
+
+--TEAM 2 PRIMARY KEY TABLES
+
+--TEAM 3 PRIMARY KEY TABLES
+
+--TEAM 4 PRIMARY KEY TABLES
+
+--TEAM 5 PRIMARY KEY TABLES
 --TEAM 5 001_building_footprint table
 CREATE TABLE IF NOT EXISTS BuildingFootprint (
   buildingCarbonFootprintID SERIAL PRIMARY KEY,
@@ -8,3 +27,5 @@ CREATE TABLE IF NOT EXISTS BuildingFootprint (
   room VARCHAR(50),
   totalRoomCo2 DOUBLE PRECISION NOT NULL
 );
+
+--TEAM 6 PRIMARY KEY TABLES
