@@ -273,3 +273,107 @@ CREATE TABLE IF NOT EXISTS BuildingFootprint (
 );
 
 --TEAM 6 PRIMARY KEY TABLES
+-- SESSION
+CREATE TABLE IF NOT EXISTS Session (
+    sessionId INT AUTO_INCREMENT PRIMARY KEY,
+    userId INT,
+    role VARCHAR(50),
+    createdAt DATETIME,
+    expiresAt DATETIME
+);
+
+-- CART
+CREATE TABLE IF NOT EXISTS Cart (
+    cartId INT AUTO_INCREMENT PRIMARY KEY,
+    customerId INT NULL,
+    sessionId INT NULL,
+    rentalStart DATETIME,
+    rentalEnd DATETIME,
+    status ENUM('ACTIVE','CHECKED_OUT','EXPIRED') DEFAULT 'ACTIVE'
+);
+
+-- CART ITEM
+CREATE TABLE IF NOT EXISTS CartItem (
+    cartItemId INT AUTO_INCREMENT PRIMARY KEY,
+    cartId INT,
+    productId INT,
+    quantity INT,
+    isSelected BOOLEAN DEFAULT TRUE
+);
+
+-- CHECKOUT
+CREATE TABLE IF NOT EXISTS Checkout (
+    checkoutId INT AUTO_INCREMENT PRIMARY KEY,
+    customerId INT,
+    cartId INT,
+    deliveryMethodId VARCHAR(50),
+    paymentMethodType ENUM('CREDIT_CARD'),
+    status ENUM('IN_PROGRESS','CONFIRMED','CANCELLED') DEFAULT 'IN_PROGRESS',
+    notifyOptIn BOOLEAN DEFAULT FALSE,
+    createdAt DATETIME
+);
+
+-- ORDER
+CREATE TABLE IF NOT EXISTS `Order` (
+    orderId INT AUTO_INCREMENT PRIMARY KEY,
+    customerId INT,
+    checkoutId INT,
+    orderDate DATETIME,
+    status ENUM(
+        'PENDING',
+        'CONFIRMED',
+        'PROCESSING',
+        'READY_FOR_DISPATCH',
+        'DISPATCHED',
+        'DELIVERED',
+        'CANCELLED'
+    ) DEFAULT 'PENDING',
+    deliveryType ENUM('NextDay','ThreeDays','OneWeek'),
+    totalAmount DECIMAL(10,2)
+);
+
+-- ORDER ITEM
+CREATE TABLE IF NOT EXISTS OrderItem (
+    orderItemId INT AUTO_INCREMENT PRIMARY KEY,
+    orderId INT,
+    productId INT,
+    quantity INT,
+    unitPrice DECIMAL(10,2),
+    rentalStartDate DATETIME,
+    rentalEndDate DATETIME
+);
+
+-- TRANSACTION (Core Financial Record)
+CREATE TABLE IF NOT EXISTS Transaction (
+    transactionId INT AUTO_INCREMENT PRIMARY KEY,
+    orderId INT,
+    amount DECIMAL(10,2),
+    type ENUM('PAYMENT','REFUND'),
+    purpose ENUM('ORDER','PENALTY','REFUND_DEPOSIT'),
+    status ENUM('PENDING','COMPLETED','FAILED','CANCELLED') DEFAULT 'PENDING',
+    providerTransactionId VARCHAR(100),
+    createdAt DATETIME
+);
+
+-- PAYMENT (Business Payment Record)
+CREATE TABLE IF NOT EXISTS Payment (
+    paymentId VARCHAR(50) PRIMARY KEY,
+    orderId INT,
+    transactionId INT,
+    amount DECIMAL(10,2),
+    purpose ENUM('RENTAL_FEE_DEPOSIT','PENALTY_FEE'),
+    status ENUM('PENDING','COMPLETED','FAILED','CANCELLED') DEFAULT 'PENDING',
+    createdAt DATETIME
+);
+
+-- DEPOSIT (Deposit Tracking)
+CREATE TABLE IF NOT EXISTS Deposit (
+    depositId VARCHAR(50) PRIMARY KEY,
+    orderId INT,
+    transactionId INT,
+    originalAmount DECIMAL(10,2),
+    heldAmount DECIMAL(10,2),
+    refundedAmount DECIMAL(10,2),
+    forfeitedAmount DECIMAL(10,2),
+    createdAt DATETIME
+);
