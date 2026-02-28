@@ -732,109 +732,180 @@ CREATE TABLE IF NOT EXISTS PackagingConfigMaterials (
 );
 
 --TEAM 6 PRIMARY KEY TABLES
+
+-- ENUM TYPES
+CREATE TYPE cart_status_enum AS ENUM ('ACTIVE','CHECKED_OUT','EXPIRED');
+
+CREATE TYPE checkout_status_enum AS ENUM ('IN_PROGRESS','CONFIRMED','CANCELLED');
+
+CREATE TYPE order_status_enum AS ENUM (
+    'PENDING',
+    'CONFIRMED',
+    'PROCESSING',
+    'READY_FOR_DISPATCH',
+    'DISPATCHED',
+    'DELIVERED',
+    'CANCELLED'
+);
+
+CREATE TYPE delivery_type_enum AS ENUM ('NextDay','ThreeDays','OneWeek');
+
+CREATE TYPE transaction_type_enum AS ENUM ('PAYMENT','REFUND');
+
+CREATE TYPE transaction_purpose_enum AS ENUM ('ORDER','PENALTY','REFUND_DEPOSIT');
+
+CREATE TYPE transaction_status_enum AS ENUM ('PENDING','COMPLETED','FAILED','CANCELLED');
+
+CREATE TYPE payment_method_enum AS ENUM ('CREDIT_CARD');
+
+CREATE TYPE payment_purpose_enum AS ENUM ('RENTAL_FEE_DEPOSIT','PENALTY_FEE');
+-- End ENUM TYPES
+
 -- SESSION
 CREATE TABLE IF NOT EXISTS Session (
-    sessionId INT AUTO_INCREMENT PRIMARY KEY,
-    userId INT,
-    role VARCHAR(50),
-    createdAt DATETIME,
-    expiresAt DATETIME
+    sessionId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    userId INT NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    createdAt TIMESTAMP NOT NULL,
+    expiresAt TIMESTAMP NOT NULL
 );
 
 -- CART
 CREATE TABLE IF NOT EXISTS Cart (
-    cartId INT AUTO_INCREMENT PRIMARY KEY,
+    cartId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     customerId INT NULL,
     sessionId INT NULL,
-    rentalStart DATETIME,
-    rentalEnd DATETIME,
-    status ENUM('ACTIVE','CHECKED_OUT','EXPIRED') DEFAULT 'ACTIVE'
+    rentalStart TIMESTAMP,
+    rentalEnd TIMESTAMP,
+    status cart_status_enum DEFAULT 'ACTIVE',
+
+    CONSTRAINT fk_cart_session
+        FOREIGN KEY (sessionId)
+        REFERENCES Session(sessionId)
+        ON DELETE SET NULL
 );
 
 -- CART ITEM
 CREATE TABLE IF NOT EXISTS CartItem (
-    cartItemId INT AUTO_INCREMENT PRIMARY KEY,
-    cartId INT,
-    productId INT,
-    quantity INT,
-    isSelected BOOLEAN DEFAULT TRUE
+    cartItemId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    cartId INT NOT NULL,
+    productId INT NOT NULL,
+    quantity INT NOT NULL,
+    isSelected BOOLEAN DEFAULT TRUE,
+
+    CONSTRAINT fk_cartitem_cart
+        FOREIGN KEY (cartId)
+        REFERENCES Cart(cartId)
+        ON DELETE CASCADE
 );
 
 -- CHECKOUT
 CREATE TABLE IF NOT EXISTS Checkout (
-    checkoutId INT AUTO_INCREMENT PRIMARY KEY,
-    customerId INT,
-    cartId INT,
+    checkoutId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    customerId INT NOT NULL,
+    cartId INT NOT NULL,
     deliveryMethodId VARCHAR(50),
-    paymentMethodType ENUM('CREDIT_CARD'),
-    status ENUM('IN_PROGRESS','CONFIRMED','CANCELLED') DEFAULT 'IN_PROGRESS',
+    paymentMethodType payment_method_enum,
+    status checkout_status_enum DEFAULT 'IN_PROGRESS',
     notifyOptIn BOOLEAN DEFAULT FALSE,
-    createdAt DATETIME
+    createdAt TIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_checkout_cart
+        FOREIGN KEY (cartId)
+        REFERENCES Cart(cartId)
+        ON DELETE CASCADE
 );
 
 -- ORDER
-CREATE TABLE IF NOT EXISTS `Order` (
-    orderId INT AUTO_INCREMENT PRIMARY KEY,
-    customerId INT,
-    checkoutId INT,
-    orderDate DATETIME,
-    status ENUM(
-        'PENDING',
-        'CONFIRMED',
-        'PROCESSING',
-        'READY_FOR_DISPATCH',
-        'DISPATCHED',
-        'DELIVERED',
-        'CANCELLED'
-    ) DEFAULT 'PENDING',
-    deliveryType ENUM('NextDay','ThreeDays','OneWeek'),
-    totalAmount DECIMAL(10,2)
+CREATE TABLE IF NOT EXISTS "Order" (
+    orderId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    customerId INT NOT NULL,
+    checkoutId INT NOT NULL,
+    orderDate TIMESTAMP NOT NULL,
+    status order_status_enum DEFAULT 'PENDING',
+    deliveryType delivery_type_enum,
+    totalAmount DECIMAL(10,2) NOT NULL,
+
+    CONSTRAINT fk_order_checkout
+        FOREIGN KEY (checkoutId)
+        REFERENCES Checkout(checkoutId)
+        ON DELETE CASCADE
 );
 
 -- ORDER ITEM
 CREATE TABLE IF NOT EXISTS OrderItem (
-    orderItemId INT AUTO_INCREMENT PRIMARY KEY,
-    orderId INT,
-    productId INT,
-    quantity INT,
-    unitPrice DECIMAL(10,2),
-    rentalStartDate DATETIME,
-    rentalEndDate DATETIME
+    orderItemId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    orderId INT NOT NULL,
+    productId INT NOT NULL,
+    quantity INT NOT NULL,
+    unitPrice DECIMAL(10,2) NOT NULL,
+    rentalStartDate TIMESTAMP,
+    rentalEndDate TIMESTAMP,
+
+    CONSTRAINT fk_orderitem_order
+        FOREIGN KEY (orderId)
+        REFERENCES "Order"(orderId)
+        ON DELETE CASCADE
 );
 
--- TRANSACTION (Core Financial Record)
+-- TRANSACTION
 CREATE TABLE IF NOT EXISTS Transaction (
-    transactionId INT AUTO_INCREMENT PRIMARY KEY,
-    orderId INT,
-    amount DECIMAL(10,2),
-    type ENUM('PAYMENT','REFUND'),
-    purpose ENUM('ORDER','PENALTY','REFUND_DEPOSIT'),
-    status ENUM('PENDING','COMPLETED','FAILED','CANCELLED') DEFAULT 'PENDING',
+    transactionId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    orderId INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    type transaction_type_enum NOT NULL,
+    purpose transaction_purpose_enum NOT NULL,
+    status transaction_status_enum DEFAULT 'PENDING',
     providerTransactionId VARCHAR(100),
-    createdAt DATETIME
+    createdAt TIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_transaction_order
+        FOREIGN KEY (orderId)
+        REFERENCES "Order"(orderId)
+        ON DELETE CASCADE
 );
 
--- PAYMENT (Business Payment Record)
+-- PAYMENT
 CREATE TABLE IF NOT EXISTS Payment (
-    paymentId INT AUTO_INCREMENT PRIMARY KEY,
-    orderId INT,
-    transactionId INT,
-    amount DECIMAL(10,2),
-    purpose ENUM('RENTAL_FEE_DEPOSIT','PENALTY_FEE'),
-    status ENUM('PENDING','COMPLETED','FAILED','CANCELLED') DEFAULT 'PENDING',
-    createdAt DATETIME
+    paymentId VARCHAR(50) PRIMARY KEY,
+    orderId INT NOT NULL,
+    transactionId INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    purpose payment_purpose_enum,
+    status transaction_status_enum DEFAULT 'PENDING',
+    createdAt TIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_payment_order
+        FOREIGN KEY (orderId)
+        REFERENCES "Order"(orderId)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_payment_transaction
+        FOREIGN KEY (transactionId)
+        REFERENCES Transaction(transactionId)
+        ON DELETE CASCADE
 );
 
--- DEPOSIT (Deposit Tracking)
+-- DEPOSIT
 CREATE TABLE IF NOT EXISTS Deposit (
-    depositId INT AUTO_INCREMENT PRIMARY KEY,
-    orderId INT,
-    transactionId INT,
-    originalAmount DECIMAL(10,2),
-    heldAmount DECIMAL(10,2),
-    refundedAmount DECIMAL(10,2),
-    forfeitedAmount DECIMAL(10,2),
-    createdAt DATETIME
+    depositId VARCHAR(50) PRIMARY KEY,
+    orderId INT NOT NULL,
+    transactionId INT NOT NULL,
+    originalAmount DECIMAL(10,2) NOT NULL,
+    heldAmount DECIMAL(10,2) NOT NULL,
+    refundedAmount DECIMAL(10,2) DEFAULT 0,
+    forfeitedAmount DECIMAL(10,2) DEFAULT 0,
+    createdAt TIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_deposit_order
+        FOREIGN KEY (orderId)
+        REFERENCES "Order"(orderId)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_deposit_transaction
+        FOREIGN KEY (transactionId)
+        REFERENCES Transaction(transactionId)
+        ON DELETE CASCADE
 );
 
 --TEAM 1 CROSS TEAM FK TABLES
@@ -1001,3 +1072,101 @@ CREATE TABLE
 --TEAM 5 CROSS TEAM FK TABLES
 
 --TEAM 6 CROSS TEAM FK TABLES
+
+-- USER (Owned by Team 4)
+CREATE TABLE IF NOT EXISTS "User" (
+    userId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    passwordHash VARCHAR(255) NOT NULL,
+    phoneCountry INT,
+    phoneNumber VARCHAR(20)
+);
+
+-- CUSTOMER (Owned by Team 4)
+CREATE TABLE IF NOT EXISTS Customer (
+    customerId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    userId INT NOT NULL,
+    address VARCHAR(255),
+    customerType INT,
+    
+    CONSTRAINT fk_customer_user
+        FOREIGN KEY (userId)
+        REFERENCES "User"(userId)
+        ON DELETE CASCADE
+);
+
+-- SESSION
+CREATE TABLE IF NOT EXISTS Session (
+    sessionId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    userId INT NOT NULL,
+    role VARCHAR(50),
+    createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expiresAt TIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_session_user
+        FOREIGN KEY (userId)
+        REFERENCES "User"(userId)
+        ON DELETE CASCADE
+);
+
+-- CART
+CREATE TABLE IF NOT EXISTS Cart (
+    cartId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    customerId INT NULL,
+    sessionId INT NULL,
+    rentalStart TIMESTAMP,
+    rentalEnd TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE','CHECKED_OUT','EXPIRED')),
+
+    CONSTRAINT fk_cart_customer
+        FOREIGN KEY (customerId)
+        REFERENCES Customer(customerId)
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_cart_session
+        FOREIGN KEY (sessionId)
+        REFERENCES Session(sessionId)
+        ON DELETE SET NULL
+);
+
+-- ORDER
+CREATE TABLE IF NOT EXISTS "Order" (
+    orderId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    customerId INT NOT NULL,
+    checkoutId INT,
+    orderDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'PENDING'
+        CHECK (status IN (
+            'PENDING',
+            'CONFIRMED',
+            'PROCESSING',
+            'READY_FOR_DISPATCH',
+            'DISPATCHED',
+            'DELIVERED',
+            'CANCELLED'
+        )),
+    deliveryType VARCHAR(20)
+        CHECK (deliveryType IN ('NextDay', 'ThreeDays', 'OneWeek')),
+    totalAmount DECIMAL(10,2) NOT NULL,
+
+    CONSTRAINT fk_order_customer
+        FOREIGN KEY (customerId)
+        REFERENCES Customer(customerId)
+        ON DELETE CASCADE
+);
+
+-- DELIVERY METHOD
+CREATE TABLE IF NOT EXISTS DeliveryMethod (
+    deliveryId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    orderId INT NOT NULL,
+    durationDays INT NOT NULL,
+    deliveryCost DECIMAL(10,2) NOT NULL,
+    carrierId VARCHAR(50),
+
+    CONSTRAINT fk_delivery_order
+        FOREIGN KEY (orderId)
+        REFERENCES "Order"(orderId)
+        ON DELETE CASCADE
+);
