@@ -182,6 +182,97 @@ CREATE TABLE IF NOT EXISTS AnalysisList (
 
 
 --TEAM 3 PRIMARY KEY TABLES
+CREATE TYPE product_status AS ENUM ('AVAILABLE', 'UNAVAILABLE', 'RETIRED');
+
+CREATE TYPE inventory_status AS ENUM 
+('AVAILABLE', 'RETIRED', 'CLEARANCE', 'SOLD', 
+ 'MAINTENANCE', 'RESERVED', 'ON_LOAN', 'BROKEN');
+
+CREATE TYPE clearance_status AS ENUM ('CLEARANCE', 'SOLD');
+
+CREATE TYPE clearance_batch_status AS ENUM ('SCHEDULED', 'ACTIVE', 'CLOSED');
+
+CREATE TABLE Category (
+    CategoryId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Name VARCHAR(255) NOT NULL,
+    Description TEXT,
+    CreatedDate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedDate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Product (
+    ProductId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    CategoryId INT NOT NULL,
+    Sku VARCHAR(255) NOT NULL,
+    Status product_status NOT NULL DEFAULT 'AVAILABLE',
+    CreatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_product_category
+        FOREIGN KEY (CategoryId)
+        REFERENCES Category(CategoryId)
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE ProductDetails (
+    DetailsId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ProductId INT NOT NULL UNIQUE,
+    TotalQuantity INT NOT NULL DEFAULT 0,
+    Name VARCHAR(255) NOT NULL,
+    Description TEXT,
+    Weight DECIMAL(10,2),
+    Image VARCHAR(255),
+    Price DECIMAL(10,2) NOT NULL,
+    DepositRate DECIMAL(10,2) DEFAULT 0,
+
+    CONSTRAINT fk_productdetails_product
+        FOREIGN KEY (ProductId)
+        REFERENCES Product(ProductId)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE InventoryItem (
+    InventoryId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ProductId INT NOT NULL,
+    SerialNumber VARCHAR(255) NOT NULL UNIQUE,
+    Status inventory_status NOT NULL DEFAULT 'AVAILABLE',
+    CreatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ExpiryDate TIMESTAMP,
+
+    CONSTRAINT fk_inventory_product
+        FOREIGN KEY (ProductId)
+        REFERENCES Product(ProductId)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE ClearanceBatch (
+    ClearanceBatchId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    BatchName VARCHAR(255) NOT NULL,
+    CreatedDate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ClearanceDate TIMESTAMP,
+    Status clearance_batch_status NOT NULL DEFAULT 'SCHEDULED'
+);
+
+CREATE TABLE ClearanceItem (
+    ClearanceItemId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ClearanceBatchId INT NOT NULL,
+    InventoryItemId INT NOT NULL UNIQUE,
+    FinalPrice DECIMAL(10,2),
+    RecommendedPrice DECIMAL(10,2),
+    SaleDate TIMESTAMP,
+    Status clearance_status NOT NULL DEFAULT 'CLEARANCE',
+
+    CONSTRAINT fk_clearance_batch
+        FOREIGN KEY (ClearanceBatchId)
+        REFERENCES ClearanceBatch(ClearanceBatchId)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_clearance_inventory
+        FOREIGN KEY (InventoryItemId)
+        REFERENCES InventoryItem(InventoryId)
+        ON DELETE CASCADE
+);
 
 --TEAM 4 PRIMARY KEY TABLES
 CREATE TABLE IF NOT EXISTS OrderStatusHistory (
