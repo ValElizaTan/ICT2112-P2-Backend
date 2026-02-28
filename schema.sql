@@ -352,15 +352,90 @@ CREATE TABLE IF NOT EXISTS Staff (
 );
 
 --TEAM 5 PRIMARY KEY TABLES
---TEAM 5 001_building_footprint table
+--001_building_footprint
 CREATE TABLE IF NOT EXISTS BuildingFootprint (
-  buildingCarbonFootprintID SERIAL PRIMARY KEY,
-  timeHourly TIMESTAMP NOT NULL,
+  buildingCarbonFootprintID INT AUTO_INCREMENT PRIMARY KEY,
+  timeHourly DATETIME NOT NULL,
   zone VARCHAR(50),
   block VARCHAR(50),
   floor VARCHAR(50),
   room VARCHAR(50),
-  totalRoomCo2 DOUBLE PRECISION NOT NULL
+  totalRoomCo2 DOUBLE NOT NULL
+);
+
+--002_EcoBadge
+CREATE TABLE IF NOT EXISTS EcoBadge (
+  badgeId INT AUTO_INCREMENT PRIMARY KEY,
+  maxCarbonG DOUBLE NOT NULL,
+  criteriaDescription VARCHAR(255),
+  badgeName VARCHAR(100) NOT NULL
+);
+
+--003_ProductFootprint
+CREATE TABLE IF NOT EXISTS ProductFootprint (
+  productCarbonFootprintID INT AUTO_INCREMENT PRIMARY KEY,
+  productID INT NOT NULL,
+  badgeId INT NOT NULL,
+  productToxicPercentage DOUBLE,
+  totalCo2 DOUBLE NOT NULL,
+  calculatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+--004_StaffAccessLog
+CREATE TABLE IF NOT EXISTS StaffAccessLog (
+  accessId INT AUTO_INCREMENT PRIMARY KEY,
+  staffId INT NOT NULL,
+  eventTime DATETIME NOT NULL,
+  eventType ENUM('IN','OUT') NOT NULL
+);
+
+--005_StaffFootprint
+CREATE TABLE IF NOT EXISTS StaffFootprint (
+  staffCarbonFootprintID INT AUTO_INCREMENT PRIMARY KEY,
+  staffId INT NOT NULL,
+  time DATETIME NOT NULL,
+  hoursWorked DOUBLE NOT NULL,
+  totalStaffCo2 DOUBLE NOT NULL
+);
+
+--006_CustomerRewards
+CREATE TABLE IF NOT EXISTS CustomerRewards (
+  customerRewardsID INT AUTO_INCREMENT PRIMARY KEY,
+  customerId INT NOT NULL,
+  discount DOUBLE NOT NULL,
+  totalCarbon DOUBLE NOT NULL
+);
+
+--007_PackagingProfile
+CREATE TABLE IF NOT EXISTS PackagingProfile (
+  profileId INT AUTO_INCREMENT PRIMARY KEY,
+  orderId INT NOT NULL,
+  volume DOUBLE NOT NULL,
+  fragilityLevel VARCHAR(50)
+);
+
+--008_PackagingConfiguration
+CREATE TABLE IF NOT EXISTS PackagingConfiguration (
+  configurationId INT AUTO_INCREMENT PRIMARY KEY,
+  profileId INT NOT NULL
+);
+
+--009_PackagingMaterial
+CREATE TABLE IF NOT EXISTS PackagingMaterial (
+  materialId INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  type VARCHAR(50),
+  recyclable BOOLEAN NOT NULL DEFAULT FALSE,
+  reusable BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+--010_PackagingConfigMaterials
+CREATE TABLE IF NOT EXISTS PackagingConfigMaterials (
+PRIMARY KEY (configurationId, materialId)
+  configurationId INT NOT NULL,
+  materialId INT NOT NULL,
+  category VARCHAR(50),
+  quantity INT NOT NULL,
 );
 
 --TEAM 6 PRIMARY KEY TABLES
