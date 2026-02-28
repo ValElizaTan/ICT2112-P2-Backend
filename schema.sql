@@ -614,91 +614,121 @@ CREATE TABLE
     CONSTRAINT fk_notificationpref_user FOREIGN KEY (userId) REFERENCES Users (userId) ON UPDATE CASCADE ON DELETE CASCADE
   );
 
---TEAM 5 PRIMARY KEY TABLES
---001_building_footprint
+-- TEAM 5 TABLES
+
+-- 001_building_footprint
 CREATE TABLE IF NOT EXISTS BuildingFootprint (
-  buildingCarbonFootprintID INT AUTO_INCREMENT PRIMARY KEY,
-  timeHourly DATETIME NOT NULL,
-  zone VARCHAR(50),
-  block VARCHAR(50),
-  floor VARCHAR(50),
-  room VARCHAR(50),
-  totalRoomCo2 DOUBLE NOT NULL
+    buildingCarbonFootprintID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    timeHourly TIMESTAMP NOT NULL,
+    zone VARCHAR(50),
+    block VARCHAR(50),
+    floor VARCHAR(50),
+    room VARCHAR(50),
+    totalRoomCo2 DOUBLE PRECISION NOT NULL
 );
 
---002_EcoBadge
+-- 002_EcoBadge
 CREATE TABLE IF NOT EXISTS EcoBadge (
-  badgeId INT AUTO_INCREMENT PRIMARY KEY,
-  maxCarbonG DOUBLE NOT NULL,
-  criteriaDescription VARCHAR(255),
-  badgeName VARCHAR(100) NOT NULL
+    badgeId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    maxCarbonG DOUBLE PRECISION NOT NULL,
+    criteriaDescription VARCHAR(255),
+    badgeName VARCHAR(100) NOT NULL
 );
 
---003_ProductFootprint
+-- 003_ProductFootprint
 CREATE TABLE IF NOT EXISTS ProductFootprint (
-  productCarbonFootprintID INT AUTO_INCREMENT PRIMARY KEY,
+    productCarbonFootprintID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   productID INT NOT NULL,
-  badgeId INT NOT NULL,
-  productToxicPercentage DOUBLE,
-  totalCo2 DOUBLE NOT NULL,
-  calculatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    badgeId INT NOT NULL,
+    productToxicPercentage DOUBLE PRECISION,
+    totalCo2 DOUBLE PRECISION NOT NULL,
+    calculatedAt TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_productfootprint_badge
+        FOREIGN KEY (badgeId)
+        REFERENCES EcoBadge(badgeId)
+        ON DELETE CASCADE
 );
 
---004_StaffAccessLog
+-- Enum type for StaffAccessLog.eventType
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'access_event_type') THEN
+    CREATE TYPE access_event_type AS ENUM ('IN','OUT');
+    END IF;
+END$$;
+
+-- 004_StaffAccessLog
 CREATE TABLE IF NOT EXISTS StaffAccessLog (
-  accessId INT AUTO_INCREMENT PRIMARY KEY,
+  accessId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   staffId INT NOT NULL,
-  eventTime DATETIME NOT NULL,
-  eventType ENUM('IN','OUT') NOT NULL
+  eventTime TIMESTAMPTZ NOT NULL DEFAULT now(),
+  eventType access_event_type NOT NULL
 );
 
---005_StaffFootprint
+-- 005_StaffFootprint
 CREATE TABLE IF NOT EXISTS StaffFootprint (
-  staffCarbonFootprintID INT AUTO_INCREMENT PRIMARY KEY,
+    staffCarbonFootprintID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   staffId INT NOT NULL,
-  time DATETIME NOT NULL,
-  hoursWorked DOUBLE NOT NULL,
-  totalStaffCo2 DOUBLE NOT NULL
+    time TIMESTAMPTZ NOT NULL DEFAULT now(),
+    hoursWorked DOUBLE PRECISION NOT NULL,
+    totalStaffCo2 DOUBLE PRECISION NOT NULL
 );
 
---006_CustomerRewards
+-- 006_CustomerRewards
 CREATE TABLE IF NOT EXISTS CustomerRewards (
-  customerRewardsID INT AUTO_INCREMENT PRIMARY KEY,
+    customerRewardsID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   customerId INT NOT NULL,
-  discount DOUBLE NOT NULL,
-  totalCarbon DOUBLE NOT NULL
+    discount DOUBLE PRECISION NOT NULL,
+    totalCarbon DOUBLE PRECISION NOT NULL
 );
 
---007_PackagingProfile
+-- 007_PackagingProfile
 CREATE TABLE IF NOT EXISTS PackagingProfile (
-  profileId INT AUTO_INCREMENT PRIMARY KEY,
+    profileId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   orderId INT NOT NULL,
-  volume DOUBLE NOT NULL,
-  fragilityLevel VARCHAR(50)
+    volume DOUBLE PRECISION NOT NULL,
+    fragilityLevel VARCHAR(50)
 );
 
---008_PackagingConfiguration
+-- 008_PackagingConfiguration
 CREATE TABLE IF NOT EXISTS PackagingConfiguration (
-  configurationId INT AUTO_INCREMENT PRIMARY KEY,
-  profileId INT NOT NULL
+    configurationId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    profileId INT NOT NULL,
+
+    CONSTRAINT fk_packagingconfiguration_profile
+    FOREIGN KEY (profileId)
+    REFERENCES PackagingProfile(profileId)
+    ON DELETE CASCADE
 );
 
---009_PackagingMaterial
+-- 009_PackagingMaterial
 CREATE TABLE IF NOT EXISTS PackagingMaterial (
-  materialId INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  type VARCHAR(50),
-  recyclable BOOLEAN NOT NULL DEFAULT FALSE,
-  reusable BOOLEAN NOT NULL DEFAULT FALSE
+    materialId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(50),
+    recyclable BOOLEAN NOT NULL DEFAULT FALSE,
+    reusable BOOLEAN NOT NULL DEFAULT FALSE
 );
 
---010_PackagingConfigMaterials
+-- 010_PackagingConfigMaterials
 CREATE TABLE IF NOT EXISTS PackagingConfigMaterials (
-PRIMARY KEY (configurationId, materialId)
-  configurationId INT NOT NULL,
-  materialId INT NOT NULL,
-  category VARCHAR(50),
-  quantity INT NOT NULL,
+    configurationId INT NOT NULL,
+    materialId INT NOT NULL,
+    category VARCHAR(50),
+    quantity INT NOT NULL,
+
+    PRIMARY KEY (configurationId, materialId),
+
+    CONSTRAINT fk_pcm_configuration
+        FOREIGN KEY (configurationId)
+        REFERENCES PackagingConfiguration(configurationId)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_pcm_material
+        FOREIGN KEY (materialId)
+        REFERENCES PackagingMaterial(materialId)
+        ON DELETE CASCADE
 );
 
 --TEAM 6 PRIMARY KEY TABLES
