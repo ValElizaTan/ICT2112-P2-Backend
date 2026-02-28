@@ -635,62 +635,6 @@ CREATE TABLE IF NOT EXISTS EcoBadge (
     badgeName VARCHAR(100) NOT NULL
 );
 
--- 003_ProductFootprint
-CREATE TABLE IF NOT EXISTS ProductFootprint (
-    productCarbonFootprintID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  productID INT NOT NULL,
-    badgeId INT NOT NULL,
-    productToxicPercentage DOUBLE PRECISION,
-    totalCo2 DOUBLE PRECISION NOT NULL,
-    calculatedAt TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    CONSTRAINT fk_productfootprint_badge
-        FOREIGN KEY (badgeId)
-        REFERENCES EcoBadge(badgeId)
-        ON DELETE CASCADE
-);
-
--- Enum type for StaffAccessLog.eventType
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'access_event_type') THEN
-    CREATE TYPE access_event_type AS ENUM ('IN','OUT');
-    END IF;
-END$$;
-
--- 004_StaffAccessLog
-CREATE TABLE IF NOT EXISTS StaffAccessLog (
-  accessId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  staffId INT NOT NULL,
-  eventTime TIMESTAMPTZ NOT NULL DEFAULT now(),
-  eventType access_event_type NOT NULL
-);
-
--- 005_StaffFootprint
-CREATE TABLE IF NOT EXISTS StaffFootprint (
-    staffCarbonFootprintID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  staffId INT NOT NULL,
-    time TIMESTAMPTZ NOT NULL DEFAULT now(),
-    hoursWorked DOUBLE PRECISION NOT NULL,
-    totalStaffCo2 DOUBLE PRECISION NOT NULL
-);
-
--- 006_CustomerRewards
-CREATE TABLE IF NOT EXISTS CustomerRewards (
-    customerRewardsID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  customerId INT NOT NULL,
-    discount DOUBLE PRECISION NOT NULL,
-    totalCarbon DOUBLE PRECISION NOT NULL
-);
-
--- 007_PackagingProfile
-CREATE TABLE IF NOT EXISTS PackagingProfile (
-    profileId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  orderId INT NOT NULL,
-    volume DOUBLE PRECISION NOT NULL,
-    fragilityLevel VARCHAR(50)
-);
-
 -- 008_PackagingConfiguration
 CREATE TABLE IF NOT EXISTS PackagingConfiguration (
     configurationId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -1070,6 +1014,88 @@ CREATE TABLE
   );
 
 --TEAM 5 CROSS TEAM FK TABLES
+
+-- 003_ProductFootprint
+CREATE TABLE IF NOT EXISTS ProductFootprint (
+    productCarbonFootprintID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    productID INT NOT NULL,
+    badgeId INT NOT NULL,
+    productToxicPercentage DOUBLE PRECISION,
+    totalCo2 DOUBLE PRECISION NOT NULL,
+    calculatedAt TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_productfootprint_badge
+        FOREIGN KEY (badgeId)
+        REFERENCES EcoBadge(badgeId)
+        ON DELETE CASCADE,
+    
+    CONSTRAINT fk_productfootprint_product
+        FOREIGN KEY (productID)
+        REFERENCES Product(productId)
+        ON DELETE CASCADE
+);
+
+-- Enum type for StaffAccessLog.eventType
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'access_event_type') THEN
+    CREATE TYPE access_event_type AS ENUM ('IN','OUT');
+    END IF;
+END$$;
+
+-- 004_StaffAccessLog
+CREATE TABLE IF NOT EXISTS StaffAccessLog (
+    accessId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    staffId INT NOT NULL,
+    eventTime TIMESTAMPTZ NOT NULL DEFAULT now(),
+    eventType access_event_type NOT NULL,
+
+    CONSTRAINT fk_staffaccesslog_staff
+        FOREIGN KEY (staffId)
+        REFERENCES Staff(staffId)
+        ON DELETE CASCADE
+);
+
+-- 005_StaffFootprint
+CREATE TABLE IF NOT EXISTS StaffFootprint (
+    staffCarbonFootprintID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    staffId INT NOT NULL,
+    time TIMESTAMPTZ NOT NULL DEFAULT now(),
+    hoursWorked DOUBLE PRECISION NOT NULL,
+    totalStaffCo2 DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT fk_staffaccesslog_staff
+        FOREIGN KEY (staffId)
+        REFERENCES Staff(staffId)
+        ON DELETE CASCADE
+);
+
+-- 006_CustomerRewards
+CREATE TABLE IF NOT EXISTS CustomerRewards (
+    customerRewardsID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    customerId INT NOT NULL,
+    discount DOUBLE PRECISION NOT NULL,
+    totalCarbon DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT fk_customerrewards_customer
+        FOREIGN KEY (customerId)
+        REFERENCES Customer(customerId)
+        ON DELETE CASCADE
+);
+
+-- 007_PackagingProfile
+CREATE TABLE IF NOT EXISTS PackagingProfile (
+    profileId INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    orderId INT NOT NULL,
+    volume DOUBLE PRECISION NOT NULL,
+    fragilityLevel VARCHAR(50),
+
+    CONSTRAINT fk_packagingprofile_order
+        FOREIGN KEY (orderId)
+        REFERENCES "Order"(orderId)
+        ON DELETE CASCADE
+);
+
 
 --TEAM 6 CROSS TEAM FK TABLES
 
