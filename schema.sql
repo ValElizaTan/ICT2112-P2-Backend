@@ -523,7 +523,7 @@ CREATE TABLE IF NOT EXISTS Transaction (
 
 -- PAYMENT (Business Payment Record)
 CREATE TABLE IF NOT EXISTS Payment (
-    paymentId VARCHAR(50) PRIMARY KEY,
+    paymentId INT AUTO_INCREMENT PRIMARY KEY,
     orderId INT,
     transactionId INT,
     amount DECIMAL(10,2),
@@ -534,7 +534,7 @@ CREATE TABLE IF NOT EXISTS Payment (
 
 -- DEPOSIT (Deposit Tracking)
 CREATE TABLE IF NOT EXISTS Deposit (
-    depositId VARCHAR(50) PRIMARY KEY,
+    depositId INT AUTO_INCREMENT PRIMARY KEY,
     orderId INT,
     transactionId INT,
     originalAmount DECIMAL(10,2),
